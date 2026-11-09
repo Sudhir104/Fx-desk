@@ -118,7 +118,7 @@ export default function Dashboard({ initial }: { initial: D | null }) {
                         <td className="py-2.5"><div className="font-semibold">{s.ccy}</div><div className="text-[11px] text-muted">{BANKS[s.ccy].bank}</div></td>
                         <td className="num py-2.5 text-right font-medium">{r?.rate != null ? r.rate.toFixed(2) + "%" : "—"}</td>
                         <td className={`num py-2.5 text-right ${r?.change6m ? (r.change6m > 0 ? "text-bull" : "text-bear") : "text-muted"}`}>{r?.change6m != null ? sg(r.change6m) + " pp" : "—"}</td>
-                        <td className="num py-2.5 pl-4 text-[12px] text-muted">{r?.lastMoveDate ? `${sg(r.lastMoveSize)} · ${r.lastMoveDate}` : "—"}</td>
+                       <td className="num py-2.5 pl-4 text-[12px] text-muted">{r?.lastMoveDate ? `${sg(r.lastMoveSize)} · ${r.lastMoveDate}` : r?.rate != null ? "no move in 14M" : "—"}</td>
                         <td className="py-2.5 pl-4"><div className="flex items-center gap-2"><div className="flex-1"><Bar score={s.total} /></div><span className={`num w-10 text-right font-semibold ${tone(s.total)}`}>{s.total === null ? "—" : sg(s.total, 1)}</span></div></td>
                         <td className={`px-4 py-2.5 text-right text-[12px] font-medium ${tone(s.total)}`}>{s.label}</td>
                       </tr>
@@ -152,7 +152,7 @@ export default function Dashboard({ initial }: { initial: D | null }) {
                       <td className="num whitespace-nowrap px-4 py-2 text-[12px] text-muted">{ist(e.date)}</td>
                       <td className="num py-2 font-semibold">{e.ccy}</td>
                       <td className="py-2">{e.title}</td>
-                      <td className="num py-2 text-right font-medium">{e.actual ?? "—"}</td>
+                      <td className="num py-2 text-right font-medium" title={e.actualSrc ? "via " + e.actualSrc : undefined}>{e.actual ?? "—"}</td>
                       <td className="num py-2 text-right text-muted">{e.forecast ?? "—"}</td>
                       <td className="num py-2 text-right text-muted">{e.previous ?? "—"}</td>
                       <td className={`px-4 py-2 text-right text-[12px] font-medium capitalize ${e.bias === "bullish" ? "text-bull" : e.bias === "bearish" ? "text-bear" : "text-muted"}`}>{e.bias}</td>

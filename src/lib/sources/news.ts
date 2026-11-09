@@ -1,8 +1,8 @@
 import { CURRENCIES, type Ccy, type Health, type NewsItem } from "../types";
 import { cached, getText } from "../cache";
 
-const HAWK = ["rate hike", "raise rates", "raises rates", "hike", "tighten", "hawkish", "restrictive", "higher for longer", "inflation remains elevated", "inflation above", "upside risks", "stronger than expected", "beats", "strong jobs", "wage growth", "sticky"];
-const DOVE = ["rate cut", "cuts rates", "cut rates", "lower rates", "easing", "ease policy", "dovish", "accommodative", "downside risks", "inflation falls", "inflation eased", "slowdown", "recession", "weaker than expected", "misses", "job losses", "unemployment rises", "cooling", "pause"];
+const HAWK = ["rate hike", "raise rates", "raises rates", "hike", "tighten", "hawkish", "restrictive", "higher for longer", "inflation remains elevated", "inflation above", "upside risks", "stronger than expected", "beats", "strong jobs", "wage growth", "sticky", "hikes", "raises", "rate rise", "hotter", "above expectations", "accelerat", "higher rates", "tightening", "beat", "strong"];
+const DOVE = ["rate cut", "cuts rates", "cut rates", "lower rates", "easing", "ease policy", "dovish", "accommodative", "downside risks", "inflation falls", "inflation eased", "slowdown", "recession", "weaker than expected", "misses", "job losses", "unemployment rises", "cooling", "pause", "rate cuts", "cuts", "lowers", "cools", "cooler", "below expectations", "contraction", "slows", "falls", "weak", "jobless rate rises", "dovish tilt"];
 const TAGS: Record<Ccy, RegExp> = {
   USD: /\b(federal reserve|the fed\b|fed's|fomc|powell|waller|treasury|u\.s\.|us dollar|nfp|wall street)\b/,
   EUR: /\b(ecb|lagarde|eurozone|euro area|bund|euro\b|german)\b/,
@@ -27,6 +27,24 @@ export function tagCcy(text: string): Ccy | null {
 
 const decode = (s: string) => s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
 const tagText = (block: string, tag: string) => { const m = block.match(new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)</${tag}>`, "i")); return m ? decode(m[1]) : ""; };
+
+
+const NUM = String.raw`-?\d[\d,]*(?:\.\d+)?\s?(?:%|[KMBT])?`;
+const REL = new RegExp(`(${NUM})\\s*(?:VS\\.?|V\\.?|VERSUS)\\s*(${NUM})\\s*(?:EXP(?:ECTED|ECTATIONS)?|EST(?:IMATES?|IMATED)?|FORECAST|CONS(?:ENSUS)?)`, "i");
+export function parseRelease(title: string): { actual: string; forecast: string } | null {
+  const m = title.match(REL);
+  return m ? { actual: m[1].replace(/\s+/g, ""), forecast: m[2].replace(/\s+/g, "") } : null;
+}
+const REL_CCY: [RegExp, Ccy][] = [
+  [/\bNEW ZEALAND\b|\bNZ\b/, "NZD"], [/\bAUSTRALIA(N)?\b/, "AUD"], [/\bCANAD(A|IAN)\b/, "CAD"], [/\bSWISS\b|\bSWITZERLAND\b/, "CHF"],
+  [/\bJAPAN(ESE)?\b/, "JPY"], [/\bUK\b|\bBRITAIN\b|\bBRITISH\b/, "GBP"],
+  [/\bEU\b|\bEUROZONE\b|\bEURO ZONE\b|\bGERMAN(Y)?\b|\bFRANCE\b|\bFRENCH\b|\bITALY\b|\bSPAIN\b/, "EUR"], [/\bUS\b|\bU\.S\.|\bAMERICAN\b/, "USD"],
+];
+export function releaseCcy(title: string): Ccy | null {
+  const t = title.toUpperCase();
+  for (const [re, c] of REL_CCY) if (re.test(t)) return c;
+  return null;
+}
 
 export type RawItem = { title: string; link: string; time: string };
 /** Minimal RSS 2.0 / Atom parser (no dependency) */
@@ -61,7 +79,7 @@ async function loadFeed(f: Feed): Promise<NewsItem[]> {
   const xml = await getText(f.url, { headers: { Accept: "application/rss+xml, application/xml, text/xml, */*" } });
   const items = parseRss(xml);
   if (!items.length) throw new Error("feed parsed to zero items");
-  return items.slice(0, 40).map((it) => {
+  return items.slice(0, f.wire ? 150 : 40).map((it) => {
     const title = it.title.replace(/^financialjuice\s*[:\-–]\s*/i, "");
     return { id: f.id + "|" + it.link, title, link: it.link, time: it.time, source: f.label, wire: !!f.wire, ccy: f.ccy ?? tagCcy(title), tone: tone(title) };
   });
@@ -80,7 +98,7 @@ export async function getNews(): Promise<{ news: NewsItem[]; health: Health[] }>
   const official = results.filter((x) => x.f.id !== "fj");
   const okOfficial = official.filter((x) => x.r.value).length;
   return {
-    news: all.slice(0, 120),
+    news: all.slice(0, 220),
     health: [
       { id: "fj", label: "FinancialJuice", ok: fj.value !== null, stale: fj.stale, error: fj.error, fetchedAt: fj.fetchedAt, detail: fj.value ? `${fj.value.length} headlines` : undefined },
       { id: "news", label: "Central-bank news", ok: okOfficial >= 4, stale: official.some((x) => x.r.stale), error: official.filter((x) => !x.r.value).map((x) => `${x.f.label}: ${x.r.error}`).join(" | ") || undefined, fetchedAt: official.find((x) => x.r.fetchedAt)?.r.fetchedAt, detail: `${okOfficial}/${official.length} feeds` },

@@ -29,7 +29,7 @@ export type Bias = "bullish" | "bearish" | "neutral" | "pending";
 export type CalEvent = {
   id: string; date: string; ccy: Ccy; title: string;
   actual: string | null; forecast: string | null; previous: string | null;
-  released: boolean; bias: Bias;
+  released: boolean; bias: Bias; actualSrc?: string;
 };
 
 export type NewsItem = { id: string; title: string; link: string; time: string; source: string; wire: boolean; ccy: Ccy | null; tone: number };
