@@ -33,12 +33,19 @@ const NUM = String.raw`-?\d[\d,]*(?:\.\d+)?\s?(?:%|[KMBT])?`;
 const REL = new RegExp(`(${NUM})\\s*(?:VS\\.?|V\\.?|VERSUS)\\s*(${NUM})\\s*(?:EXP(?:ECTED|ECTATIONS)?|EST(?:IMATES?|IMATED)?|FORECAST|CONS(?:ENSUS)?)`, "i");
 export function parseRelease(title: string): { actual: string; forecast: string } | null {
   const m = title.match(REL);
-  return m ? { actual: m[1].replace(/\s+/g, ""), forecast: m[2].replace(/\s+/g, "") } : null;
+  if (m) return { actual: m[1].replace(/\s+/g, ""), forecast: m[2].replace(/\s+/g, "") };
+  const a = title.match(new RegExp(`Actual\\s+(${NUM})\\s*\\(\\s*Forecast\\s+(${NUM})`, "i"));
+  return a ? { actual: a[1].replace(/\s+/g, ""), forecast: a[2].replace(/\s+/g, "") } : null;
 }
 const REL_CCY: [RegExp, Ccy][] = [
-  [/\bNEW ZEALAND\b|\bNZ\b/, "NZD"], [/\bAUSTRALIA(N)?\b/, "AUD"], [/\bCANAD(A|IAN)\b/, "CAD"], [/\bSWISS\b|\bSWITZERLAND\b/, "CHF"],
-  [/\bJAPAN(ESE)?\b/, "JPY"], [/\bUK\b|\bBRITAIN\b|\bBRITISH\b/, "GBP"],
-  [/\bEU\b|\bEUROZONE\b|\bEURO ZONE\b|\bGERMAN(Y)?\b|\bFRANCE\b|\bFRENCH\b|\bITALY\b|\bSPAIN\b/, "EUR"], [/\bUS\b|\bU\.S\.|\bAMERICAN\b/, "USD"],
+  [/\bNEW ZEALAND\b|\bNZ\b/, "NZD"],
+  [/\bAUSTRALIA(N)?\b/, "AUD"],
+  [/\bCANAD(A|IAN)\b/, "CAD"],
+  [/\bSWISS\b|\bSWITZERLAND\b/, "CHF"],
+  [/\bJAPAN(ESE)?\b/, "JPY"],
+  [/\bUK\b|\bBRITAIN\b|\bBRITISH\b|\bUNITED KINGDOM\b/, "GBP"],
+  [/\bEU\b|\bEURO\b|\bEURO AREA\b|\bEUROZONE\b|\bEURO ZONE\b|\bGERMAN(Y)?\b|\bFRANCE\b|\bFRENCH\b|\bITALY\b|\bSPAIN\b/, "EUR"],
+  [/\bUS\b|\bU\.S\.\b|\bUNITED STATES\b|\bAMERICAN\b/, "USD"],
 ];
 export function releaseCcy(title: string): Ccy | null {
   const t = title.toUpperCase();
