@@ -1,7 +1,7 @@
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 type Entry<T> = { v: T; t: number };
-const store = new Map<string, Entry<unknown>>();
-
+const g = globalThis as unknown as { __fxStore?: Map<string, Entry<unknown>> };
+const store = (g.__fxStore ??= new Map<string, Entry<unknown>>());
 export type Cached<T> = { value: T | null; stale: boolean; error?: string; fetchedAt?: string };
 
 /** In-memory TTL cache with stale-if-error: a failing upstream never blanks the page if we already have data. */

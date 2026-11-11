@@ -1,4 +1,7 @@
-import { CURRENCIES, type Bias, type CalEvent, type Ccy, type Health } from "../types";
+
+import { promises as fs } from "fs";
+import os from "os";
+import path from "path";import { CURRENCIES, type Bias, type CalEvent, type Ccy, type Health } from "../types";
 import { cached, getText } from "../cache";
 
 export function ffNum(v: unknown): number | null {
@@ -33,13 +36,30 @@ export function toEvents(rows: Raw[]): CalEvent[] {
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+const CACHE_FILE = path.join(os.tmpdir(), "fx-calendar-cache.json");
+
+async function loadWeek(): Promise<{ rows: Raw[]; fromDisk: boolean }> {
+  try {
+    const rows = JSON.parse(await getText("https://nfs.faireconomy.media/ff_calendar_thisweek.json")) as Raw[];
+    fs.writeFile(CACHE_FILE, JSON.stringify(rows)).catch(() => {});
+    return { rows, fromDisk: false };
+  } catch (e) {
+    try {
+      const rows = JSON.parse(await fs.readFile(CACHE_FILE, "utf8")) as Raw[];
+      if (rows.length) return { rows, fromDisk: true };
+    } catch { /* no saved copy yet */ }
+    throw e;
+  }
+}
+
 export async function getCalendar(): Promise<{ events: CalEvent[]; health: Health }> {
-  const r = await cached("calendar", 10 * 60 * 1000, async () => {
-    const week = JSON.parse(await getText("https://nfs.faireconomy.media/ff_calendar_thisweek.json")) as Raw[];
-    let next: Raw[] = [];
-    try { next = JSON.parse(await getText("https://nfs.faireconomy.media/ff_calendar_nextweek.json")) as Raw[]; } catch { /* published later in the week */ }
-    return toEvents([...week, ...next]);
+  const r = await cached("calendar", 30 * 60 * 1000, async () => {
+    const { rows, fromDisk } = await loadWeek();
+    return { events: toEvents(rows), fromDisk };
   });
-  const events = r.value ?? [];
-  return { events, health: { id: "calendar", label: "Red Folder calendar", ok: r.value !== null, stale: r.stale, error: r.error, fetchedAt: r.fetchedAt, detail: r.value ? `${events.length} high-impact events` : undefined } };
+  const events = r.value?.events ?? [];
+  return {
+    events,
+    health: { id: "calendar", label: "Red Folder calendar", ok: r.value !== null, stale: r.stale || !!r.value?.fromDisk, error: r.error, fetchedAt: r.fetchedAt, detail: r.value ? `${events.length} high-impact events` : undefined },
+  };
 }

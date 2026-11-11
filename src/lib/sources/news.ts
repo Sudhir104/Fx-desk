@@ -16,13 +16,46 @@ const TAGS: Record<Ccy, RegExp> = {
 
 export function tone(text: string): number {
   const t = text.toLowerCase();
-  const h = HAWK.filter((w) => t.includes(w)).length, d = DOVE.filter((w) => t.includes(w)).length;
-  return h + d === 0 ? 0 : +((h - d) / (h + d)).toFixed(2);
+
+  const terms = [
+    ...HAWK.map((term) => ({ term, side: 1 })),
+    ...DOVE.map((term) => ({ term, side: -1 })),
+  ].sort((a, b) => b.term.length - a.term.length);
+
+  const used: Array<[number, number]> = [];
+  let h = 0;
+  let d = 0;
+
+  for (const { term, side } of terms) {
+    const escaped = term
+      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      .replace(/\s+/g, "\\s+");
+
+    const re = new RegExp(`\\b${escaped}\\b`, "g");
+
+    for (const match of t.matchAll(re)) {
+      const start = match.index ?? 0;
+      const end = start + match[0].length;
+
+      if (used.some(([a, b]) => start < b && end > a)) {
+        continue;
+      }
+
+      used.push([start, end]);
+
+      if (side === 1) h++;
+      else d++;
+    }
+  }
+
+  return h + d === 0
+    ? 0
+    : +((h - d) / (h + d)).toFixed(2);
 }
 export function tagCcy(text: string): Ccy | null {
   const t = text.toLowerCase();
   const hits = CURRENCIES.filter((c) => TAGS[c].test(t));
-  return hits.length === 1 ? hits[0] : hits.length > 1 ? hits[0] : null;
+  return hits.length === 1 ? hits[0] : null;
 }
 
 const decode = (s: string) => s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#0?39;|&apos;/g, "'").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
